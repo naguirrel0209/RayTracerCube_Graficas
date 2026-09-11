@@ -1,45 +1,51 @@
 use crate::ray::{Ray, Vec3};
 
+const MIN_ORBIT_RADIUS: f32 = 2.5;
+const MAX_ORBIT_RADIUS: f32 = 12.0;
+const PITCH_LIMIT: f32 = 1.4;
+
 pub struct Camera {
-    target: Vec3,
-    radius: f32,
-    theta: f32,
-    phi: f32,
+    orbit_radius: f32,
+    yaw: f32,
+    pitch: f32,
+    camera_position: Vec3,
     fov_y: f32,
 }
 
 impl Camera {
-    pub fn new(target: Vec3, radius: f32, theta: f32, phi: f32, fov_y_degrees: f32) -> Self {
-        Self {
-            target,
-            radius,
-            theta,
-            phi,
+    pub fn new(orbit_radius: f32, yaw: f32, pitch: f32, fov_y_degrees: f32) -> Self {
+        let mut camera = Self {
+            orbit_radius: orbit_radius.clamp(MIN_ORBIT_RADIUS, MAX_ORBIT_RADIUS),
+            yaw,
+            pitch: pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT),
+            camera_position: Vec3::ZERO,
             fov_y: fov_y_degrees.to_radians(),
-        }
+        };
+        camera.update_position();
+        camera
     }
 
-    pub fn orbit(&mut self, delta_theta: f32, delta_phi: f32) {
-        const VERTICAL_LIMIT: f32 = 1.35;
+    pub fn orbit(&mut self, delta_yaw: f32, delta_pitch: f32) {
+        self.yaw += delta_yaw;
+        self.pitch = (self.pitch + delta_pitch).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+    }
 
-        self.theta += delta_theta;
-        self.phi = (self.phi + delta_phi).clamp(-VERTICAL_LIMIT, VERTICAL_LIMIT);
+    pub fn update_position(&mut self) {
+        self.camera_position = Vec3::new(
+            self.orbit_radius * self.pitch.cos() * self.yaw.cos(),
+            self.orbit_radius * self.pitch.sin(),
+            self.orbit_radius * self.pitch.cos() * self.yaw.sin(),
+        );
     }
 
     pub fn position(&self) -> Vec3 {
-        let horizontal_radius = self.radius * self.phi.cos();
-
-        self.target
-            + Vec3::new(
-                horizontal_radius * self.theta.sin(),
-                self.radius * self.phi.sin(),
-                horizontal_radius * self.theta.cos(),
-            )
+        self.camera_position
     }
 
     pub fn ray_for_pixel(&self, x: usize, y: usize, width: usize, height: usize) -> Ray {
-        let position = self.position();
-        let forward = (self.target - position).normalize();
+        let target = Vec3::new(0.0, 0.0, 0.0);
+        let camera_position = self.position();
+        let forward = (target - camera_position).normalize();
         let right = forward.cross(Vec3::UP).normalize();
         let up = right.cross(forward).normalize();
 
@@ -51,7 +57,7 @@ impl Camera {
         let direction =
             (forward + right * (ndc_x * half_width) + up * (ndc_y * half_height)).normalize();
 
-        Ray::new(position, direction)
+        Ray::new(camera_position, direction)
     }
 }
 
@@ -61,10 +67,29 @@ mod tests {
 
     #[test]
     fn vertical_orbit_is_clamped() {
-        let mut camera = Camera::new(Vec3::ZERO, 4.0, 0.0, 0.0, 60.0);
+        let mut camera = Camera::new(4.0, 0.0, 0.0, 60.0);
 
         camera.orbit(0.0, 10.0);
+        camera.update_position();
 
         assert!(camera.position().y < 4.0);
+    }
+
+    #[test]
+    fn camera_position_uses_spherical_orbit() {
+        let camera = Camera::new(5.0, 0.0, 0.0, 60.0);
+
+        assert!((camera.position().x - 5.0).abs() < 0.0001);
+        assert!(camera.position().y.abs() < 0.0001);
+        assert!(camera.position().z.abs() < 0.0001);
+    }
+
+    #[test]
+    fn orbit_radius_is_clamped() {
+        let min_camera = Camera::new(1.0, 0.0, 0.0, 60.0);
+        let max_camera = Camera::new(50.0, 0.0, 0.0, 60.0);
+
+        assert!((min_camera.position().x - MIN_ORBIT_RADIUS).abs() < 0.0001);
+        assert!((max_camera.position().x - MAX_ORBIT_RADIUS).abs() < 0.0001);
     }
 }

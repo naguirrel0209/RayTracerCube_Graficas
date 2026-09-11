@@ -37,7 +37,7 @@ fn main() -> Result<(), minifb::Error> {
     let triangles = build_cube(2.0, material);
     let light = Light::new(Vec3::new(-3.0, 4.0, 2.5), 0.9);
     let renderer = Renderer::new(Color::BACKGROUND);
-    let mut camera = Camera::new(Vec3::ZERO, 5.0, 0.65, 0.32, 55.0);
+    let mut camera = Camera::new(5.0, 0.65, 0.32, 55.0);
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         if window.is_key_down(Key::Left) {
@@ -52,6 +52,7 @@ fn main() -> Result<(), minifb::Error> {
         if window.is_key_down(Key::Down) {
             camera.orbit(0.0, -ORBIT_SPEED);
         }
+        camera.update_position();
 
         renderer.render(
             &mut framebuffer,
