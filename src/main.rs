@@ -33,9 +33,9 @@ fn main() -> Result<(), minifb::Error> {
     window.set_target_fps(60);
 
     let mut framebuffer = Framebuffer::new(WIDTH, HEIGHT);
-    let material = Material::new(Color::new(0.25, 0.62, 0.95));
+    let material = Material::phong(Color::new(0.25, 0.62, 0.95), 0.18, 0.78, 0.28, 28.0);
     let triangles = build_cube(2.0, material);
-    let light = Light::new(Vec3::new(-3.0, 4.0, 2.5), 0.9);
+    let light = Light::new(Vec3::new(-3.0, 4.0, 2.5), Color::WHITE, 1.35);
     let renderer = Renderer::new(Color::BACKGROUND);
     let mut camera = Camera::new(5.0, 0.65, 0.32, 55.0);
 
